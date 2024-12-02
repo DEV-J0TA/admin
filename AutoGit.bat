@@ -1,39 +1,111 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
-REM Solicita o repositório remoto
-set /p REPO_URL=Digite a URL do repositório Git (ex: https://github.com/usuario/repositorio.git): 
+REM Ativar o modo de depuração para exibir cada comando antes de sua execução
+echo DEPURAÇÃO INICIADA: Cada comando será mostrado.
+pause
 
-REM Configura o repositório remoto
-echo Verificando repositório remoto...
-git remote -v >nul 2>nul
-if errorlevel 1 (
-    echo Nenhum repositório remoto configurado. Adicionando origin...
-    git remote add origin %REPO_URL%
-) else (
-    echo O repositório remoto já está configurado.
+REM Variável para controlar se houve erro
+set ERROR_FLAG=0
+
+echo Verificando se o diretório é um repositório Git...
+if not exist ".git" (
+    echo Diretório não contém repositório Git. Inicializando...
+    git init
+    if errorlevel 1 (
+        echo ERRO: Falha ao inicializar o repositório Git.
+        set ERROR_FLAG=1
+        pause
+        goto :end
+    )
+    echo Repositório Git inicializado com sucesso.
+    echo Criando arquivo README.md para o commit inicial...
+    echo "# Novo Repositório" > README.md
+    git add README.md
+    git commit -m "Commit inicial"
+    if errorlevel 1 (
+        echo ERRO: Falha ao realizar o commit inicial.
+        set ERROR_FLAG=1
+        pause
+        goto :end
+    )
+    echo Commit inicial realizado com sucesso.
 )
+
+REM Verifica se o repositório remoto está configurado
+git remote get-url origin >nul 2>nul
+if errorlevel 1 (
+    echo Nenhum repositório remoto configurado. Solicitar URL...
+    set /p REPO_URL=Digite a URL do repositório Git: 
+    git remote add origin !REPO_URL!
+    if errorlevel 1 (
+        echo ERRO: Falha ao adicionar repositório remoto.
+        set ERROR_FLAG=1
+        pause
+        goto :end
+    )
+    echo Repositório remoto configurado como origin: !REPO_URL!
+) else (
+    for /f "tokens=*" %%i in ('git remote get-url origin') do set REPO_URL=%%i
+    echo Repositório remoto encontrado: !REPO_URL!
+)
+
+pause
 
 REM Adiciona arquivos ao repositório
 echo Adicionando arquivos ao repositório...
 git add .
-
-REM Solicita uma mensagem de commit
-set /p COMMIT_MSG=Digite uma mensagem de commit: 
-if "%COMMIT_MSG%"=="" set COMMIT_MSG="Atualização automática"
-
-REM Faz o commit
-git commit -m "%COMMIT_MSG%"
-
-REM Configura a branch principal como main, se necessário
-git branch | findstr "main" >nul
 if errorlevel 1 (
-    git branch -M main
+    echo ERRO: Falha ao adicionar arquivos ao índice.
+    set ERROR_FLAG=1
+    pause
+    goto :end
+)
+echo Arquivos adicionados ao índice com sucesso.
+pause
+
+REM Solicita mensagem de commit
+set /p COMMIT_MSG=Digite uma mensagem de commit: 
+if "!COMMIT_MSG!"=="" set COMMIT_MSG=Atualização automática
+echo Realizando commit: "!COMMIT_MSG!"
+git commit -m "!COMMIT_MSG!"
+if errorlevel 1 (
+    echo Nenhuma alteração detectada para commit.
+    pause
+) else (
+    echo Commit realizado com sucesso.
+    pause
 )
 
-REM Faz o push para o repositório remoto
-echo Enviando arquivos para o repositório remoto...
+REM Tenta fazer o push para main ou master
+echo Tentando push para a branch main...
 git push -u origin main
+if errorlevel 1 (
+    echo Falha no push para main. Tentando push para master...
+    git branch | findstr "master" >nul
+    if errorlevel 1 (
+        echo Branch master não encontrada. Criando branch master...
+        git checkout -b master
+    )
+    git push -u origin master
+    if errorlevel 1 (
+        echo ERRO: Falha ao realizar push para main e master.
+        set ERROR_FLAG=1
+        pause
+        goto :end
+    )
+    echo Push realizado com sucesso para a branch master.
+) else (
+    echo Push realizado com sucesso para a branch main.
+)
 
-echo Operação concluída! Pressione qualquer tecla para sair.
+pause
+
+:end
+if !ERROR_FLAG!==1 (
+    echo Ocorreu um erro durante a execução do script.
+    echo Consulte as mensagens acima para mais detalhes.
+) else (
+    echo Script concluído com sucesso!
+)
 pause
