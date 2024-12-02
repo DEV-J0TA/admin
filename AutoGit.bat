@@ -117,6 +117,19 @@ if errorlevel 1 (
 
 pause
 
+REM Executa o npm run deploy
+echo Executando npm run deploy...
+npm run deploy
+if errorlevel 1 (
+    echo ERRO: Falha ao executar npm run deploy.
+    set ERROR_FLAG=1
+    pause
+    goto :end
+)
+echo npm run deploy executado com sucesso.
+
+pause
+
 :end
 if !ERROR_FLAG!==1 (
     echo Ocorreu um erro durante a execução do script.
