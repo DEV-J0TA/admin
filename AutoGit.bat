@@ -32,22 +32,38 @@ if not exist ".git" (
     echo Commit inicial realizado com sucesso.
 )
 
-REM Verifica se o repositório remoto está configurado
-git remote get-url origin >nul 2>nul
+REM Verifica se o arquivo package.json existe
+if not exist "package.json" (
+    echo ERRO: O arquivo package.json não foi encontrado. Certifique-se de que está no diretório correto.
+    set ERROR_FLAG=1
+    pause
+    goto :end
+)
+
+REM Verificando e ajustando o arquivo package.json
+echo Verificando se as configurações já existem no package.json...
+findstr /c:"\"homepage\"" package.json >nul
 if errorlevel 1 (
-    echo Nenhum repositório remoto configurado. Solicitar URL...
-    set /p REPO_URL=Digite a URL do repositório Git: 
-    git remote add origin !REPO_URL!
-    if errorlevel 1 (
-        echo ERRO: Falha ao adicionar repositório remoto.
-        set ERROR_FLAG=1
-        pause
-        goto :end
-    )
-    echo Repositório remoto configurado como origin: !REPO_URL!
+    echo Adicionando homepage ao package.json...
+    powershell -Command "(Get-Content package.json) -replace '{', '{`n  \"homepage\": \"https://usuario.github.io/repositorio\",' | Set-Content package.json"
 ) else (
-    for /f "tokens=*" %%i in ('git remote get-url origin') do set REPO_URL=%%i
-    echo Repositório remoto encontrado: !REPO_URL!
+    echo A configuração homepage já existe no package.json.
+)
+
+findstr /c:"\"predeploy\"" package.json >nul
+if errorlevel 1 (
+    echo Adicionando script predeploy ao package.json...
+    powershell -Command "(Get-Content package.json) -replace '\"scripts\": {', '\"scripts\": {`n    \"predeploy\": \"npm run build\",' | Set-Content package.json"
+) else (
+    echo O script predeploy já existe no package.json.
+)
+
+findstr /c:"\"deploy\"" package.json >nul
+if errorlevel 1 (
+    echo Adicionando script deploy ao package.json...
+    powershell -Command "(Get-Content package.json) -replace '\"scripts\": {', '\"scripts\": {`n    \"deploy\": \"gh-pages -d build\",' | Set-Content package.json"
+) else (
+    echo O script deploy já existe no package.json.
 )
 
 pause
